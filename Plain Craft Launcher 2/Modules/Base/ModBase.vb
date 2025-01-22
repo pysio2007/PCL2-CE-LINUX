@@ -40,15 +40,15 @@ Public Module ModBase
     ''' </summary>
     Public Handle As IntPtr
     ''' <summary>
-    ''' 程序的启动路径，以“\”结尾。
+    ''' 程序的启动路径，以"\"结尾。
     ''' </summary>
     Public Path As String = AppDomain.CurrentDomain.SetupInformation.ApplicationBase
     ''' <summary>
     ''' 包含程序名的完整路径。
     ''' </summary>
-    Public PathWithName As String = Path & AppDomain.CurrentDomain.SetupInformation.ApplicationName
+    Public PathWithName As String = Process.GetCurrentProcess().MainModule.FileName
     ''' <summary>
-    ''' 程序内嵌图片文件夹路径，以“/”结尾。
+    ''' 程序内嵌图片文件夹路径，以"/"结尾。
     ''' </summary>
     Public PathImage As String = "pack://application:,,,/Plain Craft Launcher 2;component/Images/"
     ''' <summary>
@@ -84,7 +84,7 @@ Public Module ModBase
     ''' </summary>
     Public IsGBKEncoding As Boolean = Encoding.Default.CodePage = 936
     ''' <summary>
-    ''' 系统盘盘符，以 \ 结尾。例如 “C:\”。
+    ''' 系统盘盘符，以 \ 结尾。例如 "C:\"。
     ''' </summary>
     Public OsDrive As String = Environment.GetLogicalDrives().Where(Function(p) Directory.Exists(p)).First.ToUpper.First & ":\" '#3799
     ''' <summary>
@@ -638,7 +638,7 @@ Public Module ModBase
     ''' <summary>
     ''' 清除某 ini 文件的运行时缓存。
     ''' </summary>
-    ''' <param name="FileName">文件完整路径或简写文件名。简写将会使用“ApplicationName\文件名.ini”作为路径。</param>
+    ''' <param name="FileName">文件完整路径或简写文件名。简写将会使用"ApplicationName\文件名.ini"作为路径。</param>
     Public Sub IniClearCache(FileName As String)
         If Not FileName.Contains(":\") Then FileName = $"{Path}PCL\{FileName}.ini"
         If IniCache.ContainsKey(FileName) Then IniCache.Remove(FileName)
@@ -647,7 +647,7 @@ Public Module ModBase
     ''' 获取 ini 文件缓存。如果没有，则新读取 ini 文件内容。
     ''' 在文件不存在或读取失败时返回 Nothing。
     ''' </summary>
-    ''' <param name="FileName">文件完整路径或简写文件名。简写将会使用“ApplicationName\文件名.ini”作为路径。</param>
+    ''' <param name="FileName">文件完整路径或简写文件名。简写将会使用"ApplicationName\文件名.ini"作为路径。</param>
     Private Function IniGetContent(FileName As String) As Dictionary(Of String, String)
         Try
             '还原文件路径
@@ -671,7 +671,7 @@ Public Module ModBase
     ''' <summary>
     ''' 读取 ini 文件。这可能会使用到缓存。
     ''' </summary>
-    ''' <param name="FileName">文件完整路径或简写文件名。简写将会使用“ApplicationName\文件名.ini”作为路径。</param>
+    ''' <param name="FileName">文件完整路径或简写文件名。简写将会使用"ApplicationName\文件名.ini"作为路径。</param>
     ''' <param name="Key">键。</param>
     ''' <param name="DefaultValue">没有找到键时返回的默认值。</param>
     Public Function ReadIni(FileName As String, Key As String, Optional DefaultValue As String = "") As String
@@ -682,7 +682,7 @@ Public Module ModBase
     ''' <summary>
     ''' 写入 ini 文件，这会更新缓存。
     ''' </summary>
-    ''' <param name="FileName">文件完整路径或简写文件名。简写将会使用“ApplicationName\文件名.ini”作为路径。</param>
+    ''' <param name="FileName">文件完整路径或简写文件名。简写将会使用"ApplicationName\文件名.ini"作为路径。</param>
     ''' <param name="Key">键。</param>
     ''' <param name="Value">值。</param>
     ''' <remarks></remarks>
@@ -960,7 +960,7 @@ Public Module ModBase
     ''' <summary>
     ''' 弹出保存对话框并且要求保存位置，返回用户输入的完整路径。
     ''' </summary>
-    ''' <param name="FileFilter">要求的格式。如：“常用图片文件(*.png;*.jpg)|*.png;*.jpg”。</param>
+    ''' <param name="FileFilter">要求的格式。如："常用图片文件(*.png;*.jpg)|*.png;*.jpg"。</param>
     ''' <param name="Title">弹窗的标题。</param>
     ''' <param name="FileName">默认的文件名。</param>
     Public Function SelectAs(Title As String, FileName As String, Optional FileFilter As String = Nothing, Optional DefaultDir As String = Nothing) As String
@@ -979,7 +979,7 @@ Public Module ModBase
     ''' <summary>
     ''' 弹出选取文件对话框，要求选择一个文件。
     ''' </summary>
-    ''' <param name="FileFilter">要求的格式。如：“常用图片文件(*.png;*.jpg)|*.png;*.jpg”。</param>
+    ''' <param name="FileFilter">要求的格式。如："常用图片文件(*.png;*.jpg)|*.png;*.jpg"。</param>
     ''' <param name="Title">弹窗的标题。</param>
     Public Function SelectFile(FileFilter As String, Title As String) As String
         Using fileDialog As New Forms.OpenFileDialog
@@ -998,7 +998,7 @@ Public Module ModBase
     ''' <summary>
     ''' 弹出选取文件对话框，要求选择多个文件。
     ''' </summary>
-    ''' <param name="FileFilter">要求的格式。如：“常用图片文件(*.png;*.jpg)|*.png;*.jpg”。</param>
+    ''' <param name="FileFilter">要求的格式。如："常用图片文件(*.png;*.jpg)|*.png;*.jpg"。</param>
     ''' <param name="Title">弹窗的标题。</param>
     Public Function SelectFiles(FileFilter As String, Title As String) As String()
         Using fileDialog As New Forms.OpenFileDialog
@@ -1458,7 +1458,7 @@ RetryDir:
         Return [Enum].GetName(EnumData.GetType, EnumData)
     End Function
     ''' <summary>
-    ''' 将文件大小转化为适合的文本形式，如“1.28 M”。
+    ''' 将文件大小转化为适合的文本形式，如"1.28 M"。
     ''' </summary>
     ''' <param name="FileSize">以字节为单位的大小表示。</param>
     Public Function GetString(FileSize As Long) As String
@@ -1934,7 +1934,7 @@ RetryDir:
     End Class
 
     ''' <summary>
-    ''' 可用于临时存放文件的，不含任何特殊字符的文件夹路径，以“\”结尾。
+    ''' 可用于临时存放文件的，不含任何特殊字符的文件夹路径，以"\"结尾。
     ''' </summary>
     Public PathPure As String = GetPureASCIIDir()
     Private Function GetPureASCIIDir() As String
@@ -2029,7 +2029,7 @@ NextElement:
     End Function
 
     ''' <summary>
-    ''' 获取格式类似于“11:08:52.037”的当前时间的字符串。
+    ''' 获取格式类似于"11:08:52.037"的当前时间的字符串。
     ''' </summary>
     Public Function GetTimeNow() As String
         Return Date.Now.ToString("HH':'mm':'ss'.'fff")
@@ -2041,7 +2041,7 @@ NextElement:
         Return My.Computer.Clock.TickCount + 2147483651L
     End Function
     ''' <summary>
-    ''' 将时间间隔转换为类似“5 分 10 秒前”的易于阅读的形式。
+    ''' 将时间间隔转换为类似"5 分 10 秒前"的易于阅读的形式。
     ''' </summary>
     Public Function GetTimeSpanString(Span As TimeSpan, IsShortForm As Boolean) As String
         Dim EndFix = If(Span.TotalMilliseconds > 0, "后", "前")
@@ -2049,22 +2049,22 @@ NextElement:
         Dim TotalMonthes = Math.Floor(Span.Days / 30)
         If IsShortForm Then
             If TotalMonthes >= 12 Then
-                '1+ 年，“3 年”
+                '1+ 年，"3 年"
                 GetTimeSpanString = Math.Floor(TotalMonthes / 12) & " 年"
             ElseIf TotalMonthes >= 2 Then
-                '2~11 月，“5 个月”
+                '2~11 月，"5 个月"
                 GetTimeSpanString = TotalMonthes & " 个月"
             ElseIf Span.TotalDays >= 2 Then
-                '2 天 ~ 2 月，“23 天”
+                '2 天 ~ 2 月，"23 天"
                 GetTimeSpanString = Span.Days & " 天"
             ElseIf Span.TotalHours >= 1 Then
-                '1 小时 ~ 2 天，“15 小时”
+                '1 小时 ~ 2 天，"15 小时"
                 GetTimeSpanString = Span.Hours & " 小时"
             ElseIf Span.TotalMinutes >= 1 Then
-                '1 分钟 ~ 1 小时，“49 分钟”
+                '1 分钟 ~ 1 小时，"49 分钟"
                 GetTimeSpanString = Span.Minutes & " 分钟"
             ElseIf Span.TotalSeconds >= 1 Then
-                '1 秒 ~ 1 分钟，“23 秒”
+                '1 秒 ~ 1 分钟，"23 秒"
                 GetTimeSpanString = Span.Seconds & " 秒"
             Else
                 '不到 1 秒
@@ -2072,37 +2072,37 @@ NextElement:
             End If
         Else
             If TotalMonthes >= 61 Then
-                '5+ 年，“5 年”
+                '5+ 年，"5 年"
                 GetTimeSpanString = Math.Floor(TotalMonthes / 12) & " 年"
             ElseIf TotalMonthes >= 12 Then
-                '12~60 月，“1 年 2 个月”
+                '12~60 月，"1 年 2 个月"
                 GetTimeSpanString = Math.Floor(TotalMonthes / 12) & " 年" & If((TotalMonthes Mod 12) > 0, " " & (TotalMonthes Mod 12) & " 个月", "")
             ElseIf TotalMonthes >= 4 Then
-                '4~11 月，“5 个月”
+                '4~11 月，"5 个月"
                 GetTimeSpanString = TotalMonthes & " 个月"
             ElseIf TotalMonthes >= 1 Then
-                '1~4 月，“2 个月 13 天”
+                '1~4 月，"2 个月 13 天"
                 GetTimeSpanString = TotalMonthes & " 月" & If((Span.Days Mod 30) > 0, " " & (Span.Days Mod 30) & " 天", "")
             ElseIf Span.TotalDays >= 4 Then
-                '4~30 天，“23 天”
+                '4~30 天，"23 天"
                 GetTimeSpanString = Span.Days & " 天"
             ElseIf Span.TotalDays >= 1 Then
-                '1~3 天，“2 天 20 小时”
+                '1~3 天，"2 天 20 小时"
                 GetTimeSpanString = Span.Days & " 天" & If(Span.Hours > 0, " " & Span.Hours & " 小时", "")
             ElseIf Span.TotalHours >= 10 Then
-                '10 小时 ~ 1 天，“15 小时”
+                '10 小时 ~ 1 天，"15 小时"
                 GetTimeSpanString = Span.Hours & " 小时"
             ElseIf Span.TotalHours >= 1 Then
-                '1~10 小时，“1 小时 20 分钟”
+                '1~10 小时，"1 小时 20 分钟"
                 GetTimeSpanString = Span.Hours & " 小时" & If(Span.Minutes > 0, " " & Span.Minutes & " 分钟", "")
             ElseIf Span.TotalMinutes >= 10 Then
-                '10 分钟 ~ 1 小时，“49 分钟”
+                '10 分钟 ~ 1 小时，"49 分钟"
                 GetTimeSpanString = Span.Minutes & " 分钟"
             ElseIf Span.TotalMinutes >= 1 Then
-                '1~10 分钟，“9 分 23 秒”
+                '1~10 分钟，"9 分 23 秒"
                 GetTimeSpanString = Span.Minutes & " 分" & If(Span.Seconds > 0, " " & Span.Seconds & " 秒", "")
             ElseIf Span.TotalSeconds >= 1 Then
-                '1 秒 ~ 1 分钟，“23 秒”
+                '1 秒 ~ 1 分钟，"23 秒"
                 GetTimeSpanString = Span.Seconds & " 秒"
             Else
                 '不到 1 秒
@@ -2133,7 +2133,7 @@ NextElement:
     ''' <summary>
     ''' 前台运行文件。
     ''' </summary>
-    ''' <param name="FileName">文件名。可以为“notepad”等缩写。</param>
+    ''' <param name="FileName">文件名。可以为"notepad"等缩写。</param>
     ''' <param name="Arguments">运行参数。</param>
     Public Sub ShellOnly(FileName As String, Optional Arguments As String = "")
         Using Program As New Process
@@ -2146,7 +2146,7 @@ NextElement:
     ''' <summary>
     ''' 前台运行文件并返回返回值。
     ''' </summary>
-    ''' <param name="FileName">文件名。可以为“notepad”等缩写。</param>
+    ''' <param name="FileName">文件名。可以为"notepad"等缩写。</param>
     ''' <param name="Arguments">运行参数。</param>
     ''' <param name="Timeout">等待该程序结束的最长时间（毫秒）。超时会返回 Result.Timeout。</param>
     Public Function ShellAndGetExitCode(FileName As String, Optional Arguments As String = "", Optional Timeout As Integer = 1000000) As Result
@@ -2170,7 +2170,7 @@ NextElement:
     ''' <summary>
     ''' 静默运行文件并返回输出流字符串。执行失败会抛出异常。
     ''' </summary>
-    ''' <param name="FileName">文件名。可以为“notepad”等缩写。</param>
+    ''' <param name="FileName">文件名。可以为"notepad"等缩写。</param>
     ''' <param name="Arguments">运行参数。</param>
     ''' <param name="Timeout">等待该程序结束的最长时间（毫秒）。超时会抛出错误。</param>
     Public Function ShellAndGetOutput(FileName As String, Optional Arguments As String = "", Optional Timeout As Integer = 1000000, Optional WorkingDirectory As String = Nothing) As String

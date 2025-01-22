@@ -296,6 +296,13 @@ PCL-Community 及其成员与龙腾猫跃无从属关系，且均不会为您的
         Return Nothing
     End Function
 
+    ''' <summary>
+    ''' 生成捐助码。该版本中不包含此功能。
+    ''' </summary>
+    Friend Function DonateCodeGenerate(Optional Code As String = Nothing) As String
+        Return Nothing
+    End Function
+
 #End Region
 
 #Region "更新"
@@ -358,7 +365,8 @@ PCL-Community 及其成员与龙腾猫跃无从属关系，且均不会为您的
         IsUpdateWaitingRestart = True
         Try
             Dim fileName As String = Path + "PCL\Plain Craft Launcher 2.exe"
-            Dim text As String = String.Concat(New String() {"--update ", Process.GetCurrentProcess().Id, " """, AppDomain.CurrentDomain.SetupInformation.ApplicationName, """ """, AppDomain.CurrentDomain.SetupInformation.ApplicationName, """ ", TriggerRestartAndByEnd})
+            Dim currentExe As String = Process.GetCurrentProcess().MainModule.FileName
+            Dim text As String = String.Concat(New String() {"--update ", Process.GetCurrentProcess().Id.ToString(), " """, currentExe, """ """, currentExe, """ ", TriggerRestartAndByEnd.ToString()})
             Log("[System] 更新程序启动，参数：" + text, LogLevel.Normal, "出现错误")
             Process.Start(New ProcessStartInfo(fileName) With {.WindowStyle = ProcessWindowStyle.Hidden, .CreateNoWindow = True, .Arguments = text})
             If TriggerRestartAndByEnd Then
@@ -377,8 +385,8 @@ PCL-Community 及其成员与龙腾猫跃无从属关系，且均不会为您的
             Process.GetProcessById(ProcessId).Kill()
         Catch ex As Exception
         End Try
-        Dim OriginalPath As String = Strings.Mid(Path, 1, Path.Length - 4) + GetFileNameFromPath(OldFileName)
-        Dim TempPath As String = Strings.Mid(Path, 1, Path.Length - 4) + GetFileNameFromPath(NewFileName)
+        Dim OriginalPath As String = Path.Substring(0, Path.Length - 4) + GetFileNameFromPath(OldFileName)
+        Dim TempPath As String = Path.Substring(0, Path.Length - 4) + GetFileNameFromPath(NewFileName)
         Dim ex2 As Exception = Nothing
         Dim num As Integer = 0
         Do
