@@ -338,6 +338,7 @@
     <PackageReference Include="System.ServiceModel.NetTcp" Version="8.1.1" />
     <PackageReference Include="System.ServiceModel.Security" Version="6.0.0" />
     <PackageReference Include="System.ServiceModel.Federation" Version="8.1.1" />
+    <PackageReference Include="SkiaSharp" Version="3.116.1" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="Controls\MySliderDot.xaml.vb" />

@@ -1571,12 +1571,18 @@ OnLoaded:
         '验证有效性
         If FileName = "" Then Return New McSkinInfo With {.IsVaild = False}
         Try
-            Dim Image As New MyBitmap(FileName)
-            If Image.Pic.Width <> 64 OrElse Not (Image.Pic.Height = 32 OrElse Image.Pic.Height = 64) Then
-                Hint("皮肤图片大小应为 64x32 像素或 64x64 像素！", HintType.Critical)
-                Return New McSkinInfo With {.IsVaild = False}
-            End If
-            Dim FileInfo As New FileInfo(FileName)
+            '使用 SkiaSharp 进行跨平台图片处理
+            Using stream As New IO.FileStream(FileName, IO.FileMode.Open, IO.FileAccess.Read)
+                Using bitmap = SkiaSharp.SKBitmap.Decode(stream)
+                    If bitmap.Width <> 64 OrElse Not (bitmap.Height = 32 OrElse bitmap.Height = 64) Then
+                        Hint("皮肤图片大小应为 64x32 像素或 64x64 像素！", HintType.Critical)
+                        Return New McSkinInfo With {.IsVaild = False}
+                    End If
+                End Using
+            End Using
+
+            '使用跨平台的文件操作API
+            Dim FileInfo As New IO.FileInfo(FileName)
             If FileInfo.Length > 24 * 1024 Then
                 Hint("皮肤文件大小需小于 24 KB，而所选文件大小为 " & Math.Round(FileInfo.Length / 1024, 2) & " KB", HintType.Critical)
                 Return New McSkinInfo With {.IsVaild = False}
@@ -1657,7 +1663,7 @@ OnLoaded:
             If Not File.Exists(FileAddress) Then
                 NetDownload(Address, FileAddress & NetDownloadEnd)
                 File.Delete(FileAddress)
-                FileSystem.Rename(FileAddress & NetDownloadEnd, FileAddress)
+                IO.File.Move(FileAddress & NetDownloadEnd, FileAddress)
                 Log("[Minecraft] 皮肤下载成功：" & FileAddress)
             End If
             Return FileAddress
@@ -1686,7 +1692,7 @@ OnLoaded:
         '    hash = hash + Asc(str(i)) * (1 << (n - i - 1))
         'Next
         'Return hash
-        'End Function
+        'End function
     End Function
 
 #End Region
@@ -1795,7 +1801,17 @@ OnLoaded:
         Next
         Return Required
     End Function
-    Private OSVersion As String = My.Computer.Info.OSVersion
+    Private ReadOnly Property OSVersion As String
+        Get
+            Try
+                'Environment.OSVersion.Version 提供跨平台支持
+                Return Environment.OSVersion.Version.ToString()
+            Catch ex As Exception
+                Log(ex, "获取操作系统版本失败")
+                Return "无法获取系统版本" '返回错误
+            End Try
+        End Get
+    End Property
 
     ''' <summary>
     ''' 递归获取 Minecraft 某一版本的完整支持库列表。
