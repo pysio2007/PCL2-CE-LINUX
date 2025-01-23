@@ -106,18 +106,18 @@ Public Class MyResizer
     End Function
 
     Private Shared Sub WmGetMinMaxInfo(hwnd As IntPtr, lParam As IntPtr)
-        Dim mINMAXINFO As MINMAXINFO = CType(Marshal.PtrToStructure(lParam, GetType(MINMAXINFO)), MINMAXINFO)
-        Dim flags As Integer = 2
+        Dim minMaxInfo As MINMAXINFO = CType(Marshal.PtrToStructure(lParam, GetType(MINMAXINFO)), MINMAXINFO)
+        Const flags As Integer = 2
         Dim intPtr As IntPtr = MonitorFromWindow(hwnd, flags)
         Dim flag As Boolean = intPtr <> IntPtr.Zero
         If flag Then
-            Dim mONITORINFO As New MONITORINFO()
-            GetMonitorInfo(intPtr, mONITORINFO)
-            Dim rcWork As RECT = mONITORINFO.rcWork
-            Dim rcMonitor As RECT = mONITORINFO.rcMonitor
-            mINMAXINFO.ptMaxPosition.x = Math.Abs(rcWork.left - rcMonitor.left)
-            mINMAXINFO.ptMaxPosition.y = Math.Abs(rcWork.top - rcMonitor.top)
-            mINMAXINFO.ptMaxSize.y = Math.Abs(rcWork.bottom - rcWork.top)
+            Dim monitorInfo As New MONITORINFO()
+            GetMonitorInfo(intPtr, monitorInfo)
+            Dim rcWork As RECT = monitorInfo.rcWork
+            Dim rcMonitor As RECT = monitorInfo.rcMonitor
+            minMaxInfo.ptMaxPosition.x = Math.Abs(rcWork.left - rcMonitor.left)
+            minMaxInfo.ptMaxPosition.y = Math.Abs(rcWork.top - rcMonitor.top)
+            minMaxInfo.ptMaxSize.y = Math.Abs(rcWork.bottom - rcWork.top)
             workAreaMaxHeight = mINMAXINFO.ptMaxSize.y
             If rcWork.Height = rcMonitor.Height Then
                 mINMAXINFO.ptMaxSize.y -= 2
