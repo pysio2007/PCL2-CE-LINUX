@@ -1020,10 +1020,26 @@ Public Module ModBase
     ''' 返回以 \ 结尾的完整路径，如果没有选择则返回空字符串。
     ''' </summary>
     Public Function SelectFolder(Optional Title As String = "选择文件夹") As String
-        Dim folderDialog As New Ookii.Dialogs.Wpf.VistaFolderBrowserDialog With {.ShowNewFolderButton = True, .RootFolder = Environment.SpecialFolder.Desktop, .Description = Title, .UseDescriptionForTitle = True}
-        folderDialog.ShowDialog()
-        SelectFolder = If(String.IsNullOrEmpty(folderDialog.SelectedPath), "", folderDialog.SelectedPath & If(folderDialog.SelectedPath.EndsWithF("\"), "", "\"))
-        Log("[UI] 选择文件夹返回：" & SelectFolder)
+        Try
+            Dim dialog As New Forms.FolderBrowserDialog With {
+                .Description = Title,
+                .ShowNewFolderButton = True
+            }
+
+            If dialog.ShowDialog() = Forms.DialogResult.OK Then
+                SelectFolder = If(String.IsNullOrEmpty(dialog.SelectedPath), "",
+                                dialog.SelectedPath.Replace("/", "\") & If(dialog.SelectedPath.EndsWithF("\"), "", "\"))
+            Else
+                SelectFolder = ""
+            End If
+
+            Log("[UI] 选择文件夹返回：" & SelectFolder)
+            Return SelectFolder
+
+        Catch ex As Exception
+            Log(ex, "选择文件夹失败")
+            Return ""
+        End Try
     End Function
 
     '文件校验
@@ -1967,10 +1983,38 @@ RetryDir:
     ''' 当前程序是否拥有管理员权限。
     ''' </summary>
     Public Function IsAdmin() As Boolean
-        Dim id As WindowsIdentity = WindowsIdentity.GetCurrent()
-        Dim principal As New WindowsPrincipal(id)
-        Return principal.IsInRole(WindowsBuiltInRole.Administrator)
+        Try
+            If Environment.OSVersion.Platform = PlatformID.Win32NT Then
+                '在 Windows 上使用 WindowsPrincipal 检查
+                Dim id As WindowsIdentity = WindowsIdentity.GetCurrent()
+                Dim principal As New WindowsPrincipal(id)
+                Return principal.IsInRole(WindowsBuiltInRole.Administrator)
+            Else
+                '在 Unix/Linux/macOS 上检查是否为 root
+                Return Environment.UserName.ToLower() = "root" OrElse GetUid() = 0
+            End If
+        Catch ex As Exception
+            Log(ex, "检查管理员权限失败")
+            Return False
+        End Try
     End Function
+
+    ''' <summary>
+    ''' 获取当前用户的 UID (仅用于 Unix 系统)
+    ''' </summary>
+    Private Function GetUid() As Integer
+        Try
+            If Environment.OSVersion.Platform = PlatformID.Unix Then
+                '使用 id -u 命令获取当前用户的 UID
+                Dim output = ShellAndGetOutput("id", "-u").Trim()
+                Return Integer.Parse(output)
+            End If
+        Catch ex As Exception
+            Log(ex, "获取 UID 失败")
+        End Try
+        Return -1
+    End Function
+
     ''' <summary>
     ''' 以管理员权限运行当前程序，并等待程序运行结束。
     ''' 返回程序的返回代码，如果运行失败将抛出异常。
@@ -2945,59 +2989,67 @@ Retry:
     Private Const RegBasePath As String = "Software\PCL"
 
     ''' <summary>
-    ''' 读取注册表。
+    ''' 读取设置。
     ''' </summary>
-    ''' <param name="Key">注册表键名</param>
+    ''' <param name="Key">键名</param>
     ''' <param name="DefaultValue">默认值</param>
     Public Function ReadReg(Key As String, Optional DefaultValue As Object = Nothing) As String
-        Try
-            Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegBasePath)
-                If Reg Is Nothing Then Return If(DefaultValue?.ToString(), "")
-                Dim Value = Reg.GetValue(Key)
-                Return If(Value Is Nothing, If(DefaultValue?.ToString(), ""), Value.ToString())
-            End Using
-        Catch ex As Exception
-            Log(ex, "读取注册表出错：" & Key, LogLevel.Developer)
-            Return If(DefaultValue?.ToString(), "")
-        End Try
+        If Environment.OSVersion.Platform = PlatformID.Win32NT Then
+            Try
+                Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegBasePath)
+                    If Reg Is Nothing Then Return If(DefaultValue?.ToString(), "")
+                    Dim Value = Reg.GetValue(Key)
+                    Return If(Value Is Nothing, If(DefaultValue?.ToString(), ""), Value.ToString())
+                End Using
+            Catch ex As Exception
+                Log(ex, "读取注册表失败：" & Key, LogLevel.Developer)
+                Return If(DefaultValue?.ToString(), "")
+            End Try
+        Else
+            Return SettingsStorage.ReadValue(Key, If(DefaultValue?.ToString(), ""))
+        End If
     End Function
 
     ''' <summary>
-    ''' 写入注册表。
+    ''' 写入设置。
     ''' </summary>
-    ''' <param name="Key">注册表键名</param>
-    ''' <param name="Value">要写入的值</param>
-    Public Sub WriteReg(Key As String, Value As Object)
-        Try
-            Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RegBasePath, Microsoft.Win32.RegistryKeyPermissionCheck.ReadWriteSubTree)
-                If Reg Is Nothing Then
-                    Log("[Registry] 无法创建注册表项：" & RegBasePath, LogLevel.Developer)
-                    Return
-                End If
-                Reg.SetValue(Key, If(Value?.ToString(), ""), Microsoft.Win32.RegistryValueKind.String)
-            End Using
-        Catch ex As Exception
-            Log(ex, "写入注册表出错：" & Key, LogLevel.Developer)
-        End Try
+    Public Sub WriteReg(Key As String, Value As String)
+        If Environment.OSVersion.Platform = PlatformID.Win32NT Then
+            Try
+                Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RegBasePath)
+                    If Reg IsNot Nothing Then
+                        Reg.SetValue(Key, Value, Microsoft.Win32.RegistryValueKind.String)
+                    End If
+                End Using
+            Catch ex As Exception
+                Log(ex, "写入注册表失败：" & Key)
+            End Try
+        Else
+            SettingsStorage.WriteValue(Key, Value)
+        End If
     End Sub
 
     ''' <summary>
-    ''' 删除注册表键值。
+    ''' 删除设置。
     ''' </summary>
-    ''' <param name="Key">要删除的键名</param>
     Public Sub DeleteReg(Key As String)
-        Try
-            Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegBasePath, Microsoft.Win32.RegistryKeyPermissionCheck.ReadWriteSubTree)
-                If Reg Is Nothing Then Return
-                Try
-                    Reg.DeleteValue(Key)
-                Catch ex As ArgumentException
-                    '键不存在，忽略错误
-                End Try
-            End Using
-        Catch ex As Exception
-            Log(ex, "删除注册表出错：" & Key, LogLevel.Developer)
-        End Try
+        If Environment.OSVersion.Platform = PlatformID.Win32NT Then
+            Try
+                Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegBasePath, True)
+                    If Reg IsNot Nothing Then
+                        Try
+                            Reg.DeleteValue(Key)
+                        Catch ex As ArgumentException
+                            '键不存在，忽略错误
+                        End Try
+                    End If
+                End Using
+            Catch ex As Exception
+                Log(ex, "删除注册表失败：" & Key)
+            End Try
+        Else
+            SettingsStorage.DeleteValue(Key)
+        End If
     End Sub
 
 #End Region
@@ -3029,5 +3081,121 @@ Retry:
             Return 1024UL * 1024UL * 1024UL '1GB
         End Try
     End Function
+
+    ''' <summary>
+    ''' 跨平台设置存储的实现
+    ''' </summary>
+    Private Class SettingsStorage
+        Private Const SettingsFile As String = "Settings.json"
+        Private Shared ReadOnly SettingsLock As New Object
+        Private Shared Settings As Dictionary(Of String, String)
+
+        ''' <summary>
+        ''' 初始化设置存储
+        ''' </summary>
+        Public Shared Sub Initialize()
+            Try
+                SyncLock SettingsLock
+                    If Settings Is Nothing Then
+                        Settings = New Dictionary(Of String, String)
+                        LoadSettings()
+                    End If
+                End SyncLock
+            Catch ex As Exception
+                Log(ex, "初始化设置存储失败")
+            End Try
+        End Sub
+
+        ''' <summary>
+        ''' 从文件加载设置
+        ''' </summary>
+        Private Shared Sub LoadSettings()
+            Try
+                Dim settingsPath As String = GetSettingsPath()
+                If File.Exists(settingsPath) Then
+                    Dim json As String = File.ReadAllText(settingsPath)
+                    Settings = JsonConvert.DeserializeObject(Of Dictionary(Of String, String))(json)
+                End If
+            Catch ex As Exception
+                Log(ex, "加载设置失败")
+            End Try
+        End Sub
+
+        ''' <summary>
+        ''' 保存设置到文件
+        ''' </summary>
+        Private Shared Sub SaveSettings()
+            Try
+                Dim settingsPath As String = GetSettingsPath()
+                Dim settingsDir As String = IO.Path.GetDirectoryName(settingsPath)
+
+                If Not Directory.Exists(settingsDir) Then
+                    Directory.CreateDirectory(settingsDir)
+                End If
+
+                Dim json As String = JsonConvert.SerializeObject(Settings, Formatting.Indented)
+                File.WriteAllText(settingsPath, json)
+            Catch ex As Exception
+                Log(ex, "保存设置失败")
+            End Try
+        End Sub
+
+        ''' <summary>
+        ''' 获取设置文件的完整路径
+        ''' </summary>
+        Private Shared Function GetSettingsPath() As String
+            Return IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                                 "PCL", SettingsFile)
+        End Function
+
+        ''' <summary>
+        ''' 读取设置值
+        ''' </summary>
+        Public Shared Function ReadValue(key As String, Optional defaultValue As String = "") As String
+            Try
+                Initialize()
+                SyncLock SettingsLock
+                    If Settings.ContainsKey(key) Then
+                        Return Settings(key)
+                    End If
+                End SyncLock
+            Catch ex As Exception
+                Log(ex, "读取设置失败：" & key)
+            End Try
+            Return defaultValue
+        End Function
+
+        ''' <summary>
+        ''' 写入设置值
+        ''' </summary>
+        Public Shared Sub WriteValue(key As String, value As String)
+            Try
+                Initialize()
+                SyncLock SettingsLock
+                    Settings(key) = value
+                    SaveSettings()
+                End SyncLock
+            Catch ex As Exception
+                Log(ex, "写入设置失败：" & key)
+            End Try
+        End Sub
+
+        ''' <summary>
+        ''' 删除设置值
+        ''' </summary>
+        Public Shared Sub DeleteValue(key As String)
+            Try
+                Initialize()
+                SyncLock SettingsLock
+                    If Settings.ContainsKey(key) Then
+                        Settings.Remove(key)
+                        SaveSettings()
+                    End If
+                End SyncLock
+            Catch ex As Exception
+                Log(ex, "删除设置失败：" & key)
+            End Try
+        End Sub
+    End Class
 
 End Module
