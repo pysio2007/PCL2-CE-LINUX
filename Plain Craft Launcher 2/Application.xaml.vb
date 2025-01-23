@@ -29,17 +29,20 @@ Public Class Application
                     Environment.Exit(Result.Cancel)
                 ElseIf e.Args(0).StartsWithF("--memory") Then
                     '内存优化
-                    Dim Ram = My.Computer.Info.AvailablePhysicalMemory
+                    Dim Ram As ULong
                     Try
+                        '使用跨平台API获取可用内存
+                        Ram = GetAvailableMemory()
                         PageOtherTest.MemoryOptimizeInternal(False)
                     Catch ex As Exception
                         MsgBox(ex.Message, MsgBoxStyle.Critical, "内存优化失败")
                         Environment.Exit(-1)
                     End Try
-                    If My.Computer.Info.AvailablePhysicalMemory < Ram Then '避免 ULong 相减出现负数
+                    Dim NewRam As ULong = GetAvailableMemory()
+                    If NewRam < Ram Then '避免 ULong 相减出现负数
                         Environment.Exit(0)
                     Else
-                        Environment.Exit((My.Computer.Info.AvailablePhysicalMemory - Ram) / 1024) '返回清理的内存量（K）
+                        Environment.Exit((NewRam - Ram) / 1024) '返回清理的内存量（K）
                     End If
 #If DEBUG Then
                     '制作更新包

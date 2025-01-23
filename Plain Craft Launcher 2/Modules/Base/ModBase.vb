@@ -6,6 +6,7 @@ Imports System.Security.Principal
 Imports System.Text.RegularExpressions
 Imports System.Windows.Markup
 Imports Newtonsoft.Json
+Imports System.Diagnostics
 
 Public Module ModBase
 
@@ -3000,5 +3001,33 @@ Retry:
     End Sub
 
 #End Region
+
+    ''' <summary>
+    ''' 获取系统可用物理内存
+    ''' </summary>
+    Public Function GetAvailableMemory() As ULong
+        Try
+            If Environment.OSVersion.Platform = PlatformID.Win32NT Then
+                '在 Windows 上使用 PerformanceCounter
+                Using pc As New PerformanceCounter("Memory", "Available Bytes", True)
+                    Return CULng(pc.NextValue())
+                End Using
+            Else
+                '在其他平台上尝试读取 /proc/meminfo
+                If File.Exists("/proc/meminfo") Then
+                    Dim content = File.ReadAllText("/proc/meminfo")
+                    Dim match = System.Text.RegularExpressions.Regex.Match(content, "MemAvailable:\s+(\d+)")
+                    If match.Success Then
+                        Return CULng(match.Groups(1).Value) * 1024UL '转换为字节
+                    End If
+                End If
+                '如果上述方法都失败，返回一个保守估计值
+                Return 1024UL * 1024UL * 1024UL '1GB
+            End If
+        Catch ex As Exception
+            Log(ex, "获取系统内存信息失败")
+            Return 1024UL * 1024UL * 1024UL '1GB
+        End Try
+    End Function
 
 End Module
