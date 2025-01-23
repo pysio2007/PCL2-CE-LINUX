@@ -71,17 +71,48 @@ PCL-Community 及其成员与龙腾猫跃无从属关系，且均不会为您的
         Dim code As String = "PCL2-CECE-GOOD-2024"
         Dim rawCode As String = "4202-DOOG-ECEC-2LCP"
         Try
-            Dim searcher As New ManagementObjectSearcher("select ProcessorId from Win32_Processor") ' 获取 CPU 序列号
-            For Each obj As ManagementObject In searcher.Get()
-                rawCode = obj("ProcessorId").ToString()
-                Exit For
-            Next
-            Using sha256 As SHA256 = SHA256.Create() ' SHA256 加密
+            If OperatingSystem.IsWindows() Then
+                Try
+                    '在 Windows 上使用 WMI 获取 CPU ID
+                    Dim searcher As New ManagementObjectSearcher("select ProcessorId from Win32_Processor")
+                    For Each obj As ManagementObject In searcher.Get()
+                        rawCode = obj("ProcessorId").ToString()
+                        Exit For
+                    Next
+                Catch ex As Exception
+                    Log(ex, "[Secret] Windows 获取 CPU ID 失败")
+                End Try
+            Else
+                Try
+                    '在 Linux/Unix 上尝试从 /proc/cpuinfo 获取 CPU 信息
+                    If File.Exists("/proc/cpuinfo") Then
+                        Dim cpuInfo = File.ReadAllText("/proc/cpuinfo")
+                        Dim match = System.Text.RegularExpressions.Regex.Match(cpuInfo, "Serial\s*:\s*(\S+)")
+                        If match.Success Then
+                            rawCode = match.Groups(1).Value
+                        Else
+                            '如果没有 Serial，尝试使用其他标识符组合
+                            Dim modelName = System.Text.RegularExpressions.Regex.Match(cpuInfo, "model name\s*:\s*(.+)")
+                            Dim cpuCores = System.Text.RegularExpressions.Regex.Match(cpuInfo, "cpu cores\s*:\s*(\d+)")
+                            If modelName.Success AndAlso cpuCores.Success Then
+                                rawCode = modelName.Groups(1).Value & cpuCores.Groups(1).Value
+                            End If
+                        End If
+                    End If
+                Catch ex As Exception
+                    Log(ex, "[Secret] Linux 获取 CPU 信息失败")
+                End Try
+            End If
+
+            '使用 SHA256 加密处理获取到的硬件信息
+            Using sha256 As SHA256 = SHA256.Create()
                 Dim hash As Byte() = sha256.ComputeHash(Encoding.UTF8.GetBytes(rawCode))
                 code = BitConverter.ToString(hash).Replace("-", "")
             End Using
+
+            '计算数字和并生成最终代码
             Dim sum As Integer = 0
-            For Each c As Char In rawCode ' 获取数字和
+            For Each c As Char In rawCode
                 If Char.IsDigit(c) Then
                     sum += Val(c)
                 End If
@@ -98,7 +129,16 @@ PCL-Community 及其成员与龙腾猫跃无从属关系，且均不会为您的
     Friend Sub SecretLaunchJvmArgs(ByRef DataList As List(Of String))
         Dim DataJvmCustom As String = Setup.Get("VersionAdvanceJvm", Version:=McVersionCurrent)
         DataList.Insert(0, If(DataJvmCustom = "", Setup.Get("LaunchAdvanceJvm"), DataJvmCustom)) '可变 JVM 参数
-        McLaunchLog("当前剩余内存：" & Math.Round(My.Computer.Info.AvailablePhysicalMemory / 1024 / 1024 / 1024 * 10) / 10 & "G")
+
+        Try
+            '使用跨平台的 GC.GetGCMemoryInfo() 获取系统内存信息
+            Dim memInfo = GC.GetGCMemoryInfo()
+            Dim availableMemoryGB As Double = Math.Round(memInfo.TotalAvailableMemoryBytes / 1024.0 / 1024.0 / 1024.0 * 10) / 10
+            McLaunchLog("当前剩余内存：" & availableMemoryGB & "G")
+        Catch ex As Exception
+            Log(ex, "[Launch] 获取可用内存失败")
+        End Try
+
         DataList.Add("-Xmn" & Math.Floor(PageVersionSetup.GetRam(McVersionCurrent) * 1024 * 0.15) & "m")
         DataList.Add("-Xmx" & Math.Floor(PageVersionSetup.GetRam(McVersionCurrent) * 1024) & "m")
         If Not DataList.Any(Function(d) d.Contains("-Dlog4j2.formatMsgNoLookups=true")) Then DataList.Add("-Dlog4j2.formatMsgNoLookups=true")
@@ -178,13 +218,15 @@ PCL-Community 及其成员与龙腾猫跃无从属关系，且均不会为您的
         Key = SecretKeyGet(Key)
         Dim btKey As Byte() = Encoding.UTF8.GetBytes(Key)
         Dim btIV As Byte() = Encoding.UTF8.GetBytes("87160295")
-        Dim des As New DESCryptoServiceProvider
-        Using MS As New MemoryStream
-            Dim inData As Byte() = Encoding.UTF8.GetBytes(SourceString)
-            Using cs As New CryptoStream(MS, des.CreateEncryptor(btKey, btIV), CryptoStreamMode.Write)
-                cs.Write(inData, 0, inData.Length)
-                cs.FlushFinalBlock()
-                Return Convert.ToBase64String(MS.ToArray())
+
+        Using des As DES = DES.Create() ' 使用基类的 Create 方法
+            Using MS As New MemoryStream
+                Dim inData As Byte() = Encoding.UTF8.GetBytes(SourceString)
+                Using cs As New CryptoStream(MS, des.CreateEncryptor(btKey, btIV), CryptoStreamMode.Write)
+                    cs.Write(inData, 0, inData.Length)
+                    cs.FlushFinalBlock()
+                    Return Convert.ToBase64String(MS.ToArray())
+                End Using
             End Using
         End Using
     End Function
@@ -195,13 +237,15 @@ PCL-Community 及其成员与龙腾猫跃无从属关系，且均不会为您的
         Key = SecretKeyGet(Key)
         Dim btKey As Byte() = Encoding.UTF8.GetBytes(Key)
         Dim btIV As Byte() = Encoding.UTF8.GetBytes("87160295")
-        Dim des As New DESCryptoServiceProvider
-        Using MS As New MemoryStream
-            Dim inData As Byte() = Convert.FromBase64String(SourceString)
-            Using cs As New CryptoStream(MS, des.CreateDecryptor(btKey, btIV), CryptoStreamMode.Write)
-                cs.Write(inData, 0, inData.Length)
-                cs.FlushFinalBlock()
-                Return Encoding.UTF8.GetString(MS.ToArray())
+
+        Using des As DES = DES.Create() ' 使用基类的 Create 方法
+            Using MS As New MemoryStream
+                Dim inData As Byte() = Convert.FromBase64String(SourceString)
+                Using cs As New CryptoStream(MS, des.CreateDecryptor(btKey, btIV), CryptoStreamMode.Write)
+                    cs.Write(inData, 0, inData.Length)
+                    cs.FlushFinalBlock()
+                    Return Encoding.UTF8.GetString(MS.ToArray())
+                End Using
             End Using
         End Using
     End Function
