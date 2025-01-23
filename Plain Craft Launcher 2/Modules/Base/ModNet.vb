@@ -85,7 +85,7 @@ Retry:
         If RunInUi() AndAlso Not Url.Contains("//127.") Then Throw New Exception("在 UI 线程执行了网络请求")
         Url = SecretCdnSign(Url)
         Log("[Net] 获取客户端网络结果：" & Url & "，最大超时 " & Timeout)
-        
+
         Dim Request As CookieWebClient = Nothing
         Try
             Request = New CookieWebClient With {
@@ -96,7 +96,7 @@ Retry:
             Request.Headers("Accept-Language") = "en-US,en;q=0.5"
             Request.Headers("X-Requested-With") = "XMLHttpRequest"
             SecretHeadersSign(Url, Request, UseBrowserUserAgent)
-            
+
             Try
                 Return Request.DownloadString(Url)
             Catch ex As InvalidOperationException
@@ -114,7 +114,7 @@ Retry:
                     Throw
                 End If
             End Try
-            
+
         Catch ex As Exception
             If TypeOf ex Is WebException AndAlso CType(ex, WebException).Status = WebExceptionStatus.Timeout Then
                 Throw New TimeoutException("连接服务器超时（" & Url & "）", ex)
@@ -261,8 +261,8 @@ RequestFinished:
     ''' <param name="Url">网页的 Url。</param>
     Public Function NetGetCodeByDownload(Url As String, Optional Timeout As Integer = 10000, Optional IsJson As Boolean = False, Optional UseBrowserUserAgent As Boolean = False) As String
         Try
-            Return NetGetCodeByClient(Url, Encoding.UTF8, Timeout, 
-                If(IsJson, "application/json, text/javascript, */*; q=0.01", "*/*"), 
+            Return NetGetCodeByClient(Url, Encoding.UTF8, Timeout,
+                If(IsJson, "application/json, text/javascript, */*; q=0.01", "*/*"),
                 UseBrowserUserAgent)
         Catch ex As Exception
             If TypeOf ex Is WebException AndAlso CType(ex, WebException).Status = WebExceptionStatus.Timeout Then

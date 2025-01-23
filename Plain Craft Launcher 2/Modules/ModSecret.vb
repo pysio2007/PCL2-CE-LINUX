@@ -17,7 +17,7 @@ Friend Module ModSecret
     '用于微软登录的 ClientId
     Public Const OAuthClientId As String = ""
     'CurseForge API Key
-    Public Const CurseForgeAPIKey As String = ""
+    Public Const CurseForgeAPIKey As String = "$2a$10$vN5Wjqvg1q8d8/K64bWnLOsY7KfGYXbnBGy5OG8tYgbEcOCfvZwOq"
     ' LittleSkin OAuth ClientId
     Public Const LittleSkinClientId As String = ""
 
