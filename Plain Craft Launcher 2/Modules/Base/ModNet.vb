@@ -82,11 +82,11 @@ Retry:
         End Try
     End Function
     Public Function NetGetCodeByClient(Url As String, Encoding As Encoding, Timeout As Integer, Accept As String, Optional UseBrowserUserAgent As Boolean = False) As String
+        If RunInUi() AndAlso Not Url.Contains("//127.") Then Throw New Exception("在 UI 线程执行了网络请求")
         Url = SecretCdnSign(Url)
         Log("[Net] 获取客户端网络结果：" & Url & "，最大超时 " & Timeout)
-        Dim Request As CookieWebClient
-        Dim res As HttpWebResponse = Nothing
-        Dim HttpStream As Stream = Nothing
+        
+        Dim Request As CookieWebClient = Nothing
         Try
             Request = New CookieWebClient With {
                 .Encoding = Encoding,
@@ -96,16 +96,33 @@ Retry:
             Request.Headers("Accept-Language") = "en-US,en;q=0.5"
             Request.Headers("X-Requested-With") = "XMLHttpRequest"
             SecretHeadersSign(Url, Request, UseBrowserUserAgent)
-            Return Request.DownloadString(Url)
+            
+            Try
+                Return Request.DownloadString(Url)
+            Catch ex As InvalidOperationException
+                If ex.Message.Contains("Timeouts are not supported") Then
+                    '如果不支持超时，使用备用方法
+                    Log("[Net] 该连接不支持超时设置，使用备用下载方法：" & Url)
+                    Using BackupClient As New WebClient
+                        BackupClient.Headers("Accept") = Accept
+                        BackupClient.Headers("Accept-Language") = "en-US,en;q=0.5"
+                        BackupClient.Headers("X-Requested-With") = "XMLHttpRequest"
+                        SecretHeadersSign(Url, BackupClient, UseBrowserUserAgent)
+                        Return BackupClient.DownloadString(Url)
+                    End Using
+                Else
+                    Throw
+                End If
+            End Try
+            
         Catch ex As Exception
-            If ex.GetType.Equals(GetType(WebException)) AndAlso CType(ex, WebException).Status = WebExceptionStatus.Timeout Then
+            If TypeOf ex Is WebException AndAlso CType(ex, WebException).Status = WebExceptionStatus.Timeout Then
                 Throw New TimeoutException("连接服务器超时（" & Url & "）", ex)
             Else
                 Throw New WebException("获取结果失败，" & ex.Message & "（" & Url & "）", ex)
             End If
         Finally
-            If Not IsNothing(HttpStream) Then HttpStream.Dispose()
-            If Not IsNothing(res) Then res.Dispose()
+            If Request IsNot Nothing Then Request.Dispose()
         End Try
     End Function
 
@@ -242,15 +259,17 @@ RequestFinished:
     ''' 以多线程下载网页文件的方式获取网页源代码。
     ''' </summary>
     ''' <param name="Url">网页的 Url。</param>
-    Public Function NetGetCodeByDownload(Url As String, Optional Timeout As Integer = 45000, Optional IsJson As Boolean = False, Optional UseBrowserUserAgent As Boolean = False) As String
-        Dim Temp As String = PathTemp & "Cache\Code\" & Url.GetHashCode() & "_" & GetUuid()
-        Dim NewTask As New LoaderDownload("源码获取 " & GetUuid() & "#", New List(Of NetFile) From {New NetFile({Url}, Temp, New FileChecker With {.IsJson = IsJson}, UseBrowserUserAgent)})
+    Public Function NetGetCodeByDownload(Url As String, Optional Timeout As Integer = 10000, Optional IsJson As Boolean = False, Optional UseBrowserUserAgent As Boolean = False) As String
         Try
-            NewTask.WaitForExitTime(Timeout, TimeoutMessage:="连接服务器超时（" & Url & "）")
-            NetGetCodeByDownload = ReadFile(Temp)
-            File.Delete(Temp)
-        Finally
-            NewTask.Abort()
+            Return NetGetCodeByClient(Url, Encoding.UTF8, Timeout, 
+                If(IsJson, "application/json, text/javascript, */*; q=0.01", "*/*"), 
+                UseBrowserUserAgent)
+        Catch ex As Exception
+            If TypeOf ex Is WebException AndAlso CType(ex, WebException).Status = WebExceptionStatus.Timeout Then
+                Throw New TimeoutException("连接服务器超时（" & Url & "）", ex)
+            Else
+                Throw New WebException("获取结果失败，" & ex.Message & "（" & Url & "）", ex)
+            End If
         End Try
     End Function
     ''' <summary>

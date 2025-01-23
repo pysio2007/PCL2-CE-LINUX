@@ -5,7 +5,7 @@ Public Module ModMinecraft
 #Region "文件夹"
 
     ''' <summary>
-    ''' 当前的 Minecraft 文件夹路径，以“\”结尾。
+    ''' 当前的 Minecraft 文件夹路径，以"\"结尾。
     ''' </summary>
     Public PathMcFolder As String
     ''' <summary>
@@ -121,29 +121,35 @@ Public Module ModMinecraft
     End Sub
 
     ''' <summary>
-    ''' 为 Minecraft 文件夹创建 launcher_profiles.json 文件。
+    ''' 创建 launcher_profiles.json 文件。
     ''' </summary>
     Public Sub McFolderLauncherProfilesJsonCreate(Folder As String)
         Try
-            If File.Exists(Folder & "launcher_profiles.json") Then Exit Sub
-            Dim ResultJson As String =
-"{
-    ""profiles"":  {
-        ""PCL"": {
-            ""icon"": ""Grass"",
-            ""name"": ""PCL"",
-            ""lastVersionId"": ""latest-release"",
-            ""type"": ""latest-release"",
-            ""lastUsed"": """ & Date.Now.ToString("yyyy'-'MM'-'dd") & "T" & Date.Now.ToString("HH':'mm':'ss") & ".0000Z""
-        }
-    },
-    ""selectedProfile"": ""PCL"",
-    ""clientToken"": ""23323323323323323323323323323333""
-}"
-            WriteFile(Folder & "launcher_profiles.json", ResultJson, Encoding:=Encoding.GetEncoding("GB18030"))
-            Log("[Minecraft] 已创建 launcher_profiles.json：" & Folder)
+            '确保文件夹存在
+            Directory.CreateDirectory(Folder)
+            '写入文件
+            WriteFile(Folder & "launcher_profiles.json",
+                     "{" & vbCrLf &
+                     "    ""profiles"": {" & vbCrLf &
+                     "        ""PCL2"": {" & vbCrLf &
+                     "            ""name"": ""PCL2""," & vbCrLf &
+                     "            ""type"": ""custom""," & vbCrLf &
+                     "            ""created"": """ & Date.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fff") & "Z""," & vbCrLf &
+                     "            ""lastUsed"": """ & Date.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fff") & "Z""," & vbCrLf &
+                     "            ""icon"": ""Grass""," & vbCrLf &
+                     "            ""lastVersionId"": ""latest-release""" & vbCrLf &
+                     "        }" & vbCrLf &
+                     "    }," & vbCrLf &
+                     "    ""selectedProfile"": ""PCL2""," & vbCrLf &
+                     "    ""clientToken"": """ & Guid.NewGuid().ToString & """," & vbCrLf &
+                     "    ""launcherVersion"": {" & vbCrLf &
+                     "        ""name"": ""2.9.4""," & vbCrLf &
+                     "        ""format"": 21" & vbCrLf &
+                     "    }" & vbCrLf &
+                     "}", False, Encoding.UTF8)
         Catch ex As Exception
-            Log(ex, "创建 launcher_profiles.json 失败（" & Folder & "）", LogLevel.Feedback)
+            Log(ex, "创建 launcher_profiles.json 失败（" & Folder & "）")
+            Throw
         End Try
     End Sub
 
@@ -197,11 +203,11 @@ Public Module ModMinecraft
     Public Class McVersion
 
         ''' <summary>
-        ''' 该版本的版本文件夹，以“\”结尾。
+        ''' 该版本的版本文件夹，以"\"结尾。
         ''' </summary>
         Public ReadOnly Property Path As String
         ''' <summary>
-        ''' 应用版本隔离后，该版本所对应的 Minecraft 根文件夹，以“\”结尾。
+        ''' 应用版本隔离后，该版本所对应的 Minecraft 根文件夹，以"\"结尾。
         ''' </summary>
         Public ReadOnly Property PathIndie As String
             Get
@@ -1659,7 +1665,7 @@ OnLoaded:
     End Function
 
     ''' <summary>
-    ''' 获取 Uuid 对应的皮肤，返回“Steve”或“Alex”。
+    ''' 获取 Uuid 对应的皮肤，返回"Steve"或"Alex"。
     ''' </summary>
     Public Function McSkinSex(Uuid As String) As String
         If Not Uuid.Length = 32 Then Return "Steve"
