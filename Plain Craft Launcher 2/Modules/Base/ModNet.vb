@@ -209,12 +209,16 @@ RequestFinished:
         Try
             If Url.StartsWithF("https", True) Then Request.ProtocolVersion = HttpVersion.Version11
             Request.Timeout = Timeout
+            Request.ReadWriteTimeout = Timeout
             Request.Accept = Accept
             SecretHeadersSign(Url, Request, UseBrowserUserAgent)
             Using res As HttpWebResponse = Request.GetResponse()
                 Using HttpStream As Stream = res.GetResponseStream()
-                    HttpStream.ReadTimeout = Timeout
-                    Dim HttpData As Byte() = New Byte(16384) {}
+                    Try
+                        HttpStream.ReadTimeout = Timeout
+                    Catch ex As Exception
+                        '某些流不支持超时设置，忽略该错误
+                    End Try
                     Using Reader As New StreamReader(HttpStream, If(Encode, Encoding.UTF8))
                         Dim ResultString As String = Reader.ReadToEnd
                         Return If(IsJson, GetJson(ResultString), ResultString)
@@ -1786,7 +1790,7 @@ Retry:
 #Region "属性"
 
         ''' <summary>
-        ''' 需要下载的文件。为“本地地址 - 文件对象”键值对。
+        ''' 需要下载的文件。为"本地地址 - 文件对象"键值对。
         ''' </summary>
         Public Files As New Dictionary(Of String, NetFile)
         Public ReadOnly LockFiles As New Object

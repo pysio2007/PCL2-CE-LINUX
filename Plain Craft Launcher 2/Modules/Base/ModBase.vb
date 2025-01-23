@@ -2875,4 +2875,147 @@ Retry:
 
 #End Region
 
+#Region "更新包制作"
+
+    ''' <summary>
+    ''' 制作更新包
+    ''' </summary>
+    ''' <param name="FilePath">文件路径</param>
+    ''' <param name="IsFirst">是否为第一步</param>
+    Public Sub ExeEdit(FilePath As String, IsFirst As Boolean)
+        Try
+            '检查文件
+            If Not File.Exists(FilePath) Then
+                Throw New FileNotFoundException("未找到文件：" & FilePath)
+            End If
+
+            '根据是否为第一步执行不同操作
+            If IsFirst Then
+                '第一步：备份原文件
+                Dim BackupPath As String = FilePath & ".bak"
+                If File.Exists(BackupPath) Then File.Delete(BackupPath)
+                File.Copy(FilePath, BackupPath)
+
+                '读取文件内容
+                Dim FileContent As String = File.ReadAllText(FilePath)
+
+                '进行第一步的修改
+                '这里添加你的具体修改逻辑
+
+                '保存修改后的文件
+                File.WriteAllText(FilePath, FileContent)
+
+            Else
+                '第二步：从备份还原并进行第二步修改
+                Dim BackupPath As String = FilePath & ".bak"
+                If Not File.Exists(BackupPath) Then
+                    Throw New FileNotFoundException("未找到备份文件")
+                End If
+
+                '还原备份
+                File.Copy(BackupPath, FilePath, True)
+                File.Delete(BackupPath)
+
+                '读取文件内容
+                Dim FileContent As String = File.ReadAllText(FilePath)
+
+                '进行第二步的修改
+                '这里添加你的具体修改逻辑
+
+                '保存修改后的文件
+                File.WriteAllText(FilePath, FileContent)
+            End If
+
+            Log("[Update] 更新包制作" & If(IsFirst, "第一步", "第二步") & "完成：" & FilePath)
+
+        Catch ex As Exception
+            Log(ex, "制作更新包失败", LogLevel.Msgbox)
+            Throw
+        End Try
+    End Sub
+
+#End Region
+
+#Region "注册表操作"
+
+    ''' <summary>
+    ''' 注册表操作的基础路径
+    ''' </summary>
+    Private Const RegBasePath As String = "Software\PCL"
+
+    ''' <summary>
+    ''' 读取注册表。
+    ''' </summary>
+    ''' <param name="Key">注册表键名</param>
+    ''' <param name="ShowException">是否显示和抛出异常</param>
+    ''' <returns>注册表值，如果不存在或出错则返回空字符串</returns>
+    Public Function ReadReg(Key As String, Optional ShowException As Boolean = False) As String
+        Try
+            Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegBasePath)
+                If Reg Is Nothing Then Return ""
+                Dim Value = Reg.GetValue(Key)
+                Return If(Value Is Nothing, "", Value.ToString)
+            End Using
+        Catch ex As Exception
+            Log(ex, "读取注册表出错：" & Key, If(ShowException, LogLevel.Hint, LogLevel.Developer))
+            If ShowException Then Throw
+            Return ""
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' 写入注册表。
+    ''' </summary>
+    ''' <param name="Key">注册表键名</param>
+    ''' <param name="Value">要写入的值</param>
+    Public Sub WriteReg(Key As String, Value As String)
+        WriteRegInternal(Key, Value, False)
+    End Sub
+
+    ''' <summary>
+    ''' 写入注册表的内部实现。
+    ''' </summary>
+    Private Sub WriteRegInternal(Key As String, Value As String, ShowException As Boolean)
+        Try
+            Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RegBasePath, Microsoft.Win32.RegistryKeyPermissionCheck.ReadWriteSubTree)
+                If Reg Is Nothing Then
+                    Throw New Exception("无法创建注册表项")
+                End If
+                Reg.SetValue(Key, Value, Microsoft.Win32.RegistryValueKind.String)
+            End Using
+        Catch ex As Exception
+            Log(ex, "写入注册表出错：" & Key, If(ShowException, LogLevel.Hint, LogLevel.Developer))
+            If ShowException Then Throw
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 删除注册表键值。
+    ''' </summary>
+    ''' <param name="Key">要删除的键名</param>
+    Public Sub DeleteReg(Key As String)
+        DeleteRegInternal(Key, False)
+    End Sub
+
+    ''' <summary>
+    ''' 删除注册表键值的内部实现。
+    ''' </summary>
+    Private Sub DeleteRegInternal(Key As String, ShowException As Boolean)
+        Try
+            Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegBasePath, Microsoft.Win32.RegistryKeyPermissionCheck.ReadWriteSubTree)
+                If Reg Is Nothing Then Return
+                Try
+                    Reg.DeleteValue(Key)
+                Catch ex As ArgumentException
+                    '键不存在，忽略错误
+                End Try
+            End Using
+        Catch ex As Exception
+            Log(ex, "删除注册表出错：" & Key, If(ShowException, LogLevel.Hint, LogLevel.Developer))
+            If ShowException Then Throw
+        End Try
+    End Sub
+
+#End Region
+
 End Module

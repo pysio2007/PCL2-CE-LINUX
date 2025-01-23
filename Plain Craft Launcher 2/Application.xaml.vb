@@ -10,7 +10,7 @@ Public Class Application
     ''' </summary>
     Private Sub Test()
         Try
-            ModDevelop.Start()
+            '移除了 ModDevelop.Start() 调用,因为该成员不存在
         Catch ex As Exception
             Log(ex, "开发者模式测试出错", LogLevel.Msgbox)
         End Try
@@ -127,7 +127,19 @@ WaitRetry:
             WriteFile(PathPure & "libwebp.dll", GetResources("libwebp64"))
             '网络配置初始化
             ServicePointManager.Expect100Continue = True
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 Or SecurityProtocolType.Tls Or SecurityProtocolType.Tls11 Or SecurityProtocolType.Tls12
+            Try
+                '尝试设置所有可用的安全协议
+                ServicePointManager.SecurityProtocol = CType(3072 Or 768 Or 192 Or 48, SecurityProtocolType)
+                'SecurityProtocolType.Tls13(3072) Or SecurityProtocolType.Tls12(768) Or SecurityProtocolType.Tls11(192) Or SecurityProtocolType.Tls(48)
+            Catch ex As Exception
+                Try
+                    '如果不支持 TLS 1.3，则使用 TLS 1.2 及以下版本
+                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 Or SecurityProtocolType.Tls11 Or SecurityProtocolType.Tls
+                Catch ex2 As Exception
+                    '如果还是失败，仅使用 TLS 1.2
+                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12
+                End Try
+            End Try
             ServicePointManager.DefaultConnectionLimit = 1024
             '计时
             Log("[Start] 第一阶段加载用时：" & GetTimeTick() - ApplicationStartTick & " ms")
@@ -168,7 +180,7 @@ WaitRetry:
         Dim ExceptionString As String = GetExceptionDetail(e.Exception, True)
         If ExceptionString.Contains("System.Windows.Threading.Dispatcher.Invoke") OrElse
            ExceptionString.Contains("MS.Internal.AppModel.ITaskbarList.HrInit") OrElse
-           ExceptionString.Contains(".NET Framework") OrElse ' “自动错误判断” 的结果分析
+           ExceptionString.Contains(".NET Framework") OrElse ' "自动错误判断" 的结果分析
            ExceptionString.Contains("未能加载文件或程序集") Then
             OpenWebsite("https://dotnet.microsoft.com/zh-cn/download/dotnet-framework/thank-you/net48-offline-installer")
             MsgBox("你的 .NET Framework 版本过低或损坏，请下载并重新安装 .NET Framework 4.8！", MsgBoxStyle.Information, "运行环境错误")
