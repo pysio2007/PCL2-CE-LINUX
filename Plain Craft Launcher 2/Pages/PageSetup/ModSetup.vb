@@ -328,7 +328,9 @@
     Private Sub Read(Key As String, ByRef E As SetupEntry, Version As McVersion)
         Try
             If Not E.State = 0 Then Exit Sub
-            Dim SourceValue As String '先用 String 储存，避免类型转换
+            Dim SourceValue As String = "" '先用 String 储存，避免类型转换
+            
+            '读取原始值
             Select Case E.Source
                 Case SetupSource.Normal
                     SourceValue = ReadIni("Setup", Key, E.DefaultValueEncoded)
@@ -341,6 +343,8 @@
                         SourceValue = ReadIni(Version.Path & "PCL\Setup.ini", Key, E.DefaultValueEncoded)
                     End If
             End Select
+
+            '解密（如果需要）
             If E.Encoded Then
                 If SourceValue.Equals(E.DefaultValueEncoded) Then
                     SourceValue = E.DefaultValue
@@ -354,10 +358,40 @@
                     End Try
                 End If
             End If
-            E.Value = CTypeDynamic(SourceValue, E.Type)
+
+            '类型转换
+            If String.IsNullOrEmpty(SourceValue) Then
+                E.Value = E.DefaultValue
+            Else
+                Select Case E.Type
+                    Case GetType(McLoginType)
+                        '特殊处理登录类型
+                        Select Case SourceValue.ToLower()
+                            Case "0", "legacy"
+                                E.Value = McLoginType.Legacy
+                            Case "5", "ms", "microsoft"
+                                E.Value = McLoginType.Ms
+                            Case "3", "nide"
+                                E.Value = McLoginType.Nide
+                            Case "4", "auth"
+                                E.Value = McLoginType.Auth
+                            Case Else
+                                E.Value = E.DefaultValue
+                        End Select
+                    Case GetType(Integer)
+                        If Integer.TryParse(SourceValue, E.Value) Then
+                            '成功转换为整数
+                        Else
+                            E.Value = E.DefaultValue
+                        End If
+                    Case Else
+                        E.Value = CTypeDynamic(SourceValue, E.Type)
+                End Select
+            End If
+
         Catch ex As Exception
-            Log(ex, "读取设置失败：" & Key, LogLevel.Hint)
-            E.Value = CTypeDynamic(E.DefaultValue, E.Type)
+            Log(ex, "读取设置失败：" & Key, LogLevel.Developer)
+            E.Value = E.DefaultValue
         End Try
     End Sub
 
