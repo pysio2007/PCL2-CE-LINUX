@@ -5,9 +5,8 @@
 [![哔哩哔哩](https://img.shields.io/badge/动态-BiliBili-00A4DB?style=flat&labelColor=444444&logoSize=auto)](https://space.bilibili.com/11343203/dynamic)
 [![爱发电](https://img.shields.io/badge/赞助-爱发电-946ce6?style=flat&labelColor=444444&logoSize=auto)](https://afdian.com/@LTCat)
 
-基于 PCL2 开源代码二次开发的社区版本，包括了主线暂未制作的功能和改进！<br/>
-代码会在主线发布更新时与主线同步一次，但来自社区的功能会保持自己的更新节奏。<br/>
-同时需注意，社区版的版本号与主线并非严格对应关系。<br/>
+基于 PCL2 社区版本 开源代码 二次开发的Linux版本，尝试将PCL2移植到Linux上<br/>
+因为其特殊性 Linux版本相较于主线和Windows版本存在一些差异和滞后。<br/>
 欢迎大家来用用看！
 
 <br/>
