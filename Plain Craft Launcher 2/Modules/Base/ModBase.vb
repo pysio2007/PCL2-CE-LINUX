@@ -2947,19 +2947,17 @@ Retry:
     ''' 读取注册表。
     ''' </summary>
     ''' <param name="Key">注册表键名</param>
-    ''' <param name="ShowException">是否显示和抛出异常</param>
-    ''' <returns>注册表值，如果不存在或出错则返回空字符串</returns>
-    Public Function ReadReg(Key As String, Optional ShowException As Boolean = False) As String
+    ''' <param name="DefaultValue">默认值</param>
+    Public Function ReadReg(Key As String, Optional DefaultValue As Object = Nothing) As String
         Try
             Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegBasePath)
-                If Reg Is Nothing Then Return ""
+                If Reg Is Nothing Then Return If(DefaultValue?.ToString(), "")
                 Dim Value = Reg.GetValue(Key)
-                Return If(Value Is Nothing, "", Value.ToString)
+                Return If(Value Is Nothing, If(DefaultValue?.ToString(), ""), Value.ToString())
             End Using
         Catch ex As Exception
-            Log(ex, "读取注册表出错：" & Key, If(ShowException, LogLevel.Hint, LogLevel.Developer))
-            If ShowException Then Throw
-            Return ""
+            Log(ex, "读取注册表出错：" & Key, LogLevel.Developer)
+            Return If(DefaultValue?.ToString(), "")
         End Try
     End Function
 
@@ -2968,24 +2966,17 @@ Retry:
     ''' </summary>
     ''' <param name="Key">注册表键名</param>
     ''' <param name="Value">要写入的值</param>
-    Public Sub WriteReg(Key As String, Value As String)
-        WriteRegInternal(Key, Value, False)
-    End Sub
-
-    ''' <summary>
-    ''' 写入注册表的内部实现。
-    ''' </summary>
-    Private Sub WriteRegInternal(Key As String, Value As String, ShowException As Boolean)
+    Public Sub WriteReg(Key As String, Value As Object)
         Try
             Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RegBasePath, Microsoft.Win32.RegistryKeyPermissionCheck.ReadWriteSubTree)
                 If Reg Is Nothing Then
-                    Throw New Exception("无法创建注册表项")
+                    Log("[Registry] 无法创建注册表项：" & RegBasePath, LogLevel.Developer)
+                    Return
                 End If
-                Reg.SetValue(Key, Value, Microsoft.Win32.RegistryValueKind.String)
+                Reg.SetValue(Key, If(Value?.ToString(), ""), Microsoft.Win32.RegistryValueKind.String)
             End Using
         Catch ex As Exception
-            Log(ex, "写入注册表出错：" & Key, If(ShowException, LogLevel.Hint, LogLevel.Developer))
-            If ShowException Then Throw
+            Log(ex, "写入注册表出错：" & Key, LogLevel.Developer)
         End Try
     End Sub
 
@@ -2994,13 +2985,6 @@ Retry:
     ''' </summary>
     ''' <param name="Key">要删除的键名</param>
     Public Sub DeleteReg(Key As String)
-        DeleteRegInternal(Key, False)
-    End Sub
-
-    ''' <summary>
-    ''' 删除注册表键值的内部实现。
-    ''' </summary>
-    Private Sub DeleteRegInternal(Key As String, ShowException As Boolean)
         Try
             Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegBasePath, Microsoft.Win32.RegistryKeyPermissionCheck.ReadWriteSubTree)
                 If Reg Is Nothing Then Return
@@ -3011,8 +2995,7 @@ Retry:
                 End Try
             End Using
         Catch ex As Exception
-            Log(ex, "删除注册表出错：" & Key, If(ShowException, LogLevel.Hint, LogLevel.Developer))
-            If ShowException Then Throw
+            Log(ex, "删除注册表出错：" & Key, LogLevel.Developer)
         End Try
     End Sub
 
