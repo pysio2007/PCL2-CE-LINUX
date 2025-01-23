@@ -193,11 +193,11 @@
     Public Sub RefreshRam(ShowAnim As Boolean)
         If LabRamGame Is Nothing OrElse LabRamUsed Is Nothing OrElse FrmMain.PageCurrent <> FormMain.PageType.Setup OrElse FrmSetupLeft.PageID <> FormMain.PageSubType.SetupLaunch Then Exit Sub
         '获取内存情况
-        Dim RamGame As Double = GetRam(McVersionCurrent, False)
+        Dim RamGame As Double = Math.Round(GetRam(McVersionCurrent, False) * 10) / 10
         Dim RamTotal As Double = Math.Round(My.Computer.Info.TotalPhysicalMemory / 1024 / 1024 / 1024 * 10) / 10
-        Dim RamAvailable As Double = Math.Round(My.Computer.Info.AvailablePhysicalMemory / 1024 / 1024 / 1024 * 10) / 10
+        Dim RamAvailable As Double = Math.Round(CDbl(GetAvailableMemory()) / 1024 / 1024 / 1024 * 10) / 10
         Dim RamGameActual As Double = Math.Min(RamGame, RamAvailable)
-        Dim RamUsed As Double = RamTotal - RamAvailable
+        Dim RamUsed As Double = Math.Round((RamTotal - RamAvailable) * 10) / 10
         Dim RamEmpty As Double = Math.Round(MathClamp(RamTotal - RamUsed - RamGame, 0, 1000) * 10) / 10
         '设置最大可用内存
         If RamTotal <= 1.5 Then

@@ -231,11 +231,6 @@ RequestFinished:
             SecretHeadersSign(Url, Request, UseBrowserUserAgent)
             Using res As HttpWebResponse = Request.GetResponse()
                 Using HttpStream As Stream = res.GetResponseStream()
-                    Try
-                        HttpStream.ReadTimeout = Timeout
-                    Catch ex As Exception
-                        '某些流不支持超时设置，忽略该错误
-                    End Try
                     Using Reader As New StreamReader(HttpStream, If(Encode, Encoding.UTF8))
                         Dim ResultString As String = Reader.ReadToEnd
                         Return If(IsJson, GetJson(ResultString), ResultString)
@@ -437,22 +432,19 @@ RequestFinished:
             End If
             Req.ContentType = ContentType
             Req.Timeout = Timeout
+            Req.ReadWriteTimeout = Timeout
             SecretHeadersSign(Url, Req, UseBrowserUserAgent)
             If Url.StartsWith("https", StringComparison.OrdinalIgnoreCase) Then Req.ProtocolVersion = HttpVersion.Version11
             If Method = "POST" OrElse Method = "PUT" Then
                 If Not IsNothing(SendData) Then
                     Req.ContentLength = SendData.Length
                     Using DataStream As Stream = Req.GetRequestStream()
-                        DataStream.WriteTimeout = Timeout
-                        DataStream.ReadTimeout = Timeout
                         DataStream.Write(SendData, 0, SendData.Length)
                     End Using
                 End If
             End If
             Using Resp As WebResponse = Req.GetResponse()
                 Using DataStream As Stream = Resp.GetResponseStream()
-                    DataStream.WriteTimeout = Timeout
-                    DataStream.ReadTimeout = Timeout
                     Using Reader As New StreamReader(DataStream)
                         Res = Reader.ReadToEnd()
                     End Using
@@ -1088,6 +1080,7 @@ StartThread:
                 If Info.Source.Url.StartsWithF("https", True) Then HttpRequest.ProtocolVersion = HttpVersion.Version11
                 HttpRequest.Proxy = GetProxy()
                 HttpRequest.Timeout = Timeout
+                HttpRequest.ReadWriteTimeout = Timeout
                 HttpRequest.AddRange(Info.DownloadStart)
                 SecretHeadersSign(Info.Source.Url, HttpRequest, UseBrowserUserAgent)
                 Dim ContentLength As Long = 0
@@ -1174,7 +1167,6 @@ NotSupportRange:
                     End If
                     '开始下载
                     Using HttpStream = HttpResponse.GetResponseStream()
-                        HttpStream.ReadTimeout = Timeout
                         If Setup.Get("SystemDebugDelay") Then Threading.Thread.Sleep(RandomInteger(50, 3000))
                         Dim HttpData As Byte() = New Byte(16384) {}
                         HttpDataCount = HttpStream.Read(HttpData, 0, 16384)
