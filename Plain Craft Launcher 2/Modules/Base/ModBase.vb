@@ -2989,12 +2989,17 @@ Retry:
     Private Const RegBasePath As String = "Software\PCL"
 
     ''' <summary>
+    ''' 是否强制使用配置文件存储设置（用于开发测试）
+    ''' </summary>
+    Public ForceUseConfigFile As Boolean = False
+
+    ''' <summary>
     ''' 读取设置。
     ''' </summary>
     ''' <param name="Key">键名</param>
     ''' <param name="DefaultValue">默认值</param>
     Public Function ReadReg(Key As String, Optional DefaultValue As Object = Nothing) As String
-        If Environment.OSVersion.Platform = PlatformID.Win32NT Then
+        If Environment.OSVersion.Platform = PlatformID.Win32NT AndAlso Not ForceUseConfigFile Then
             Try
                 Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegBasePath)
                     If Reg Is Nothing Then Return If(DefaultValue?.ToString(), "")
@@ -3006,7 +3011,12 @@ Retry:
                 Return If(DefaultValue?.ToString(), "")
             End Try
         Else
-            Return SettingsStorage.ReadValue(Key, If(DefaultValue?.ToString(), ""))
+            Try
+                Return SettingsStorage.ReadValue(Key, If(DefaultValue?.ToString(), ""))
+            Catch ex As Exception
+                Log(ex, "读取设置失败：" & Key, LogLevel.Developer)
+                Return If(DefaultValue?.ToString(), "")
+            End Try
         End If
     End Function
 
@@ -3014,7 +3024,7 @@ Retry:
     ''' 写入设置。
     ''' </summary>
     Public Sub WriteReg(Key As String, Value As String)
-        If Environment.OSVersion.Platform = PlatformID.Win32NT Then
+        If Environment.OSVersion.Platform = PlatformID.Win32NT AndAlso Not ForceUseConfigFile Then
             Try
                 Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RegBasePath)
                     If Reg IsNot Nothing Then
@@ -3025,7 +3035,11 @@ Retry:
                 Log(ex, "写入注册表失败：" & Key)
             End Try
         Else
-            SettingsStorage.WriteValue(Key, Value)
+            Try
+                SettingsStorage.WriteValue(Key, Value)
+            Catch ex As Exception
+                Log(ex, "写入设置失败：" & Key)
+            End Try
         End If
     End Sub
 
@@ -3033,7 +3047,7 @@ Retry:
     ''' 删除设置。
     ''' </summary>
     Public Sub DeleteReg(Key As String)
-        If Environment.OSVersion.Platform = PlatformID.Win32NT Then
+        If Environment.OSVersion.Platform = PlatformID.Win32NT AndAlso Not ForceUseConfigFile Then
             Try
                 Using Reg As Microsoft.Win32.RegistryKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegBasePath, True)
                     If Reg IsNot Nothing Then
@@ -3048,7 +3062,11 @@ Retry:
                 Log(ex, "删除注册表失败：" & Key)
             End Try
         Else
-            SettingsStorage.DeleteValue(Key)
+            Try
+                SettingsStorage.DeleteValue(Key)
+            Catch ex As Exception
+                Log(ex, "删除设置失败：" & Key)
+            End Try
         End If
     End Sub
 
