@@ -215,7 +215,7 @@
                 Me.Type = If(Value, New Object).GetType
                 Me.DefaultValueEncoded = If(Encoded, SecretEncrypt(Value, "PCL" & UniqueAddress), Value)
             Catch ex As Exception
-                Log(ex, "初始化 SetupEntry 失败", LogLevel.Feedback) '#5095 的 fallback
+                Log(ex, "初始化 SetupEntry 失败", LogLevel.Feedback) '#5095 的 fallback   
             End Try
         End Sub
 
